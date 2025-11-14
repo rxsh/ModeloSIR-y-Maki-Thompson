@@ -4,6 +4,8 @@ import sys
 import os
 
 sys.path.append(os.path.abspath("src"))
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 from models import (
     sir_rhs,
@@ -49,9 +51,11 @@ def run_sir():
     plt.plot(t, R, label="R(t)")
     plt.title("Modelo SIR (β=0.5, γ=0.1)")
     plt.xlabel("t")
-    plt.ylabel("ProporciOn")
+    plt.ylabel("Proporción")
     plt.grid(True)
     plt.legend()
+    fname = os.path.join(OUTPUT_DIR, "sir_timeseries.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
     plt.show()
 
 
@@ -90,6 +94,8 @@ def run_retrato_fase():
     plt.title("Retrato de Fase S-I")
     plt.legend()
     plt.grid(True)
+    fname = os.path.join(OUTPUT_DIR, "retrato_fase_SI.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
     plt.show()
 
 
@@ -120,9 +126,11 @@ def run_rumor_general():
     plt.plot(t, Z, label="Neutros Z(t)")
     plt.title("Modelo General de Rumor")
     plt.xlabel("t")
-    plt.ylabel("ProporciOn")
+    plt.ylabel("Proporción")
     plt.legend()
     plt.grid()
+    fname = os.path.join(OUTPUT_DIR, "rumor_general_timeseries.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
     plt.show()
 
 
@@ -152,7 +160,15 @@ def run_maki():
         plt.xlabel("t")
         plt.grid(True)
         plt.legend()
+        fname = os.path.join(OUTPUT_DIR, f"maki_IC_{int(ic[0]*100)}_{int(ic[1]*100)}.png")
+        plt.savefig(fname, dpi=150, bbox_inches='tight')
         plt.show()
+
+        # registrar proporcion final de informantes
+        y_final = float(Y[-1])
+        print(f"IC={ic} -> Y_final={y_final:.6f}")
+        with open(os.path.join(OUTPUT_DIR, "maki_final_proportions.txt"), "a", encoding="utf-8") as f:
+            f.write(f"IC={ic}, Y_final={y_final:.6f}\n")
 
 
 def run_comparacion_metodos():
@@ -171,7 +187,7 @@ def run_comparacion_metodos():
         dt=dt
     )
 
-    print("\nMEtodo            Tiempo (s)    Error relativo")
+    print("\nMetodo            Tiempo (s)    Error relativo")
     print("-----------------------------------------------")
     for name, ttime, err in results:
         print(f"{name:18} {ttime:.5f}        {err:.6f}")
@@ -188,11 +204,52 @@ def run_comparacion_metodos():
     plt.plot(ts_em, ys_em[:,1], "--", label="Euler Mejorado")
     plt.plot(ts_rk, ys_rk[:,1], "--", label="RK4")
 
-    plt.title("ComparaciOn de MEtodos NumEricos")
+    plt.title("Comparacion de Metodos Numericos")
     plt.xlabel("t")
     plt.ylabel("I(t)")
     plt.grid()
     plt.legend()
+    fname = os.path.join(OUTPUT_DIR, "comparacion_metodos.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
+    plt.show()
+
+    # Barrido en dt para error/tiempo
+    dt_values = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01]
+    methods = ["Euler", "Euler mejorado", "RK4"]
+    errors = {m: [] for m in methods}
+    times = {m: [] for m in methods}
+
+    for dtv in dt_values:
+        res, (tb, yb) = compare_methods(sir_rhs, (0,60), y0, params=[beta, gamma], dt=dtv)
+        for name, ttime, err in res:
+            errors[name].append(err)
+            times[name].append(ttime)
+
+    # Graficar error vs dt
+    plt.figure()
+    for name in methods:
+        plt.loglog(dt_values, errors[name], marker='o', label=name)
+    plt.gca().invert_xaxis()
+    plt.xlabel('dt')
+    plt.ylabel('Error (norm)')
+    plt.title('Convergencia: Error vs dt')
+    plt.grid(True, which='both')
+    plt.legend()
+    fname = os.path.join(OUTPUT_DIR, 'error_vs_dt.png')
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
+    plt.show()
+
+    # Graficar tiempo vs dt
+    plt.figure()
+    for name in methods:
+        plt.plot(dt_values, times[name], marker='o', label=name)
+    plt.xlabel('dt')
+    plt.ylabel('Tiempo (s)')
+    plt.title('Tiempo de computo vs dt')
+    plt.grid(True)
+    plt.legend()
+    fname = os.path.join(OUTPUT_DIR, 'time_vs_dt.png')
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
     plt.show()
 
 
