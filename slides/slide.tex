@@ -1,0 +1,160 @@
+\documentclass{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{grffile}
+\raggedbottom
+\usetheme{Madrid}
+\graphicspath{{./outputs/}{../outputs/}}
+
+\title[Modelos SIR y Rumores]{Avance: Modelos SIR y Maki‑Thompson}
+\author{Cesar Lengua \and Jean Marc Nadue}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% --- Objetivo ---
+\begin{frame}{Objetivo}
+\begin{itemize}
+  \item Comparar la dinámica de contagio (SIR) y difusión de rumores (Maki‑Thompson / modelo general).
+  \item Evaluar la dependencia de la dinámica en parámetros clave y el efecto del método numérico.
+\end{itemize}
+\end{frame}
+
+% --- Modelos y parámetros ---
+\begin{frame}{Modelos y parámetros}
+\textbf{SIR (reducido)}
+\[
+S'=-\beta S I,\qquad I'=\beta S I - \gamma I
+\]
+Parámetros:
+\begin{itemize}
+  \item $\beta$: tasa de transmisión (contactos efectivos).
+  \item $\gamma$: tasa de recuperación (1 / duración infecciosa).
+  \item $R_0=\beta/\gamma$: si $R_0>1$ hay crecimiento inicial de la infección.
+\end{itemize}
+\vspace{2mm}
+\textbf{Maki‑Thompson / Modelo general}
+\[
+X'=-\lambda X Y,\qquad Y'=\lambda X Y - \delta Y - \alpha Y(1-X)
+\]
+\[
+Z'=\delta Y + \alpha Y(1-X)
+\]
+Parámetros:
+\begin{itemize}
+  \item $\lambda$: tasa de transmisión del rumor.
+  \item $\delta$: retirada autónoma.
+  \item $\alpha$: retirada por encuentro con no‑ignorantes (mecanismo por contactos).
+\end{itemize}
+\end{frame}
+
+% --- Métodos numéricos ---
+\begin{frame}{Métodos numéricos}
+Implementados: Euler explícito, Euler mejorado (RK2), RK4 y RK45 (solve\_ivp).
+Breve interpretación:
+\begin{itemize}
+  \item Métodos de orden bajo (Euler) son rápidos para exploración pero pueden distorsionar picos y tiempos.
+  \item RK4/RK45 dan mejor precisión en picos y conservación de masa relativa, con mayor coste por paso.
+\end{itemize}
+\end{frame}
+
+% --- Figura: serie temporal SIR ---
+\begin{frame}{Serie temporal: SIR}
+\centering
+\vfill
+\includegraphics[height=0.62\textheight,keepaspectratio]{sir_timeseries.png}
+\vfill
+\small
+Interpretación: muestra la fracción de susceptibles, infectados y recuperados en el tiempo. Un pico en I(t) indica la máxima prevalencia; su altura y tiempo dependen de $\beta,\gamma$ (R0).
+\end{frame}
+
+% --- Figura: retrato de fase S-I ---
+\begin{frame}{Retrato de fase S–I}
+\centering
+\vfill
+\includegraphics[height=0.62\textheight,keepaspectratio]{retrato_fase_SI.png}
+\vfill
+\small
+Interpretación: las trayectorias S vs I para diferentes condiciones iniciales muestran cómo evoluciona la epidemia en fase. Flechas indican la dirección temporal; el punto rojo marca el máximo de I en cada trayectoria.
+\end{frame}
+
+% --- Figura: comparación SIR vs Rumor ---
+\begin{frame}{Comparación: SIR vs modelo de rumor}
+\centering
+\vfill
+\includegraphics[height=0.62\textheight,keepaspectratio]{compare_sir_rumor.png}
+\vfill
+\small
+Interpretación: compara la fracción de propagadores (I en SIR, Y en rumor) bajo las mismas condiciones iniciales. Observe diferencias en la forma del decaimiento: en SIR la retirada es un término autónomo $\gamma I$, en rumores la retirada depende de encuentros (parámetro $\alpha$) y suele producir un decaimiento más rápido cuando muchos ya conocen el rumor.
+\end{frame}
+
+% --- Figura: fase X-Y de Maki-Thompson ---
+\begin{frame}{Retrato fase: Maki‑Thompson (X vs Y)}
+\centering
+\vfill
+\includegraphics[height=0.62\textheight,keepaspectratio]{maki_phase_XY.png}
+\vfill
+\small
+Interpretación: evolución de ignorantes vs informantes; las trayectorias muestran cómo cambian X y Y para distintas condiciones iniciales y cómo converge la población a mayor proporción de neutros.
+\end{frame}
+
+% --- Tabla resumen: barrido SIR ---
+\begin{frame}{Resumen de barrido SIR (ejemplos)}
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+$\beta$ & $\gamma$ & $R_0$ & $I_{\max}$ & $t_{\mathrm{peak}}$ \\
+\midrule
+0.50 & 0.10 & 5.0 & 0.36 & 12.4 \\
+0.30 & 0.10 & 3.0 & 0.24 & 15.8 \\
+0.20 & 0.50 & 0.4 & 0.01 & 1.2 \\
+0.15 & 0.20 & 0.75 & 0.03 & 4.6 \\
+\bottomrule
+\end{tabular}
+\vspace{2mm}
+\small
+Breve interpretación: filas ejemplo — R0>1 produce picos notables; R0<1 la infección no alcanza picos relevantes.
+\end{frame}
+
+% --- Coste y errores: mini‑tabla + figura ---
+\begin{frame}{Coste y precisión (ej.)}
+\begin{columns}
+  \column{0.55\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,keepaspectratio]{error_vs_dt.png}
+  \column{0.45\textwidth}
+    \small
+    \begin{tabular}{lcc}
+    \toprule
+    Método & Tiempo (s) & Error rel. \\
+    \midrule
+    Euler & 0.0024 & 7.07e-02 \\
+    Euler mejorado & 0.0059 & 5.91e-04 \\
+    RK4 & 0.0125 & 3.8e-05 \\
+    \bottomrule
+    \end{tabular}
+    \vspace{4mm}
+    \footnotesize
+    Interpretación: RK4 tiene menor error pero mayor coste; elegir según objetivo (exploratorio vs cuantitativo).
+\end{columns}
+\end{frame}
+
+% --- Conclusiones ---
+\begin{frame}{Conclusiones}
+\begin{itemize}
+  \item $R_0$ determina el crecimiento inicial en SIR; si $R_0>1$ aparece un pico epidémico.
+  \item En rumores, la retirada dependiente de contactos ($\alpha$) reduce la persistencia de informantes Y(t) de forma distinta al término $\gamma I$.
+  \item Recomendación: RK4/RK45 para resultados cuantitativos; Euler para barridos rápidos.
+\end{itemize}
+\end{frame}
+
+
+
+\end{document}

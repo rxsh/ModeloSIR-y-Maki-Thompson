@@ -1,0 +1,7 @@
+\frametitle{Artefactos generados y comandos}
+\begin{itemize}
+  \item Archivos clave: \verb|outputs/sir_summary.csv|, \verb|outputs/compare_sir_rumor.png| y figuras en \verb|outputs/|.
+  \item Las figuras se generaron con \verb|python run_all.py| en el repo.
+  \item Para compilar esta diapositiva: use \verb|pdflatex 5min_slide.tex| desde la carpeta \texttt{slides/} (o desde la raíz con
+        \verb|-output-directory=slides|).
+\end{itemize}
