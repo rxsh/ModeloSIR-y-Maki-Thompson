@@ -1,7 +1,10 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
 import os
+import csv
 
 sys.path.append(os.path.abspath("src"))
 OUTPUT_DIR = "outputs"
@@ -56,7 +59,7 @@ def run_sir():
     plt.legend()
     fname = os.path.join(OUTPUT_DIR, "sir_timeseries.png")
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 def run_retrato_fase():
@@ -96,7 +99,7 @@ def run_retrato_fase():
     plt.grid(True)
     fname = os.path.join(OUTPUT_DIR, "retrato_fase_SI.png")
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 def run_rumor_general():
@@ -131,7 +134,7 @@ def run_rumor_general():
     plt.grid()
     fname = os.path.join(OUTPUT_DIR, "rumor_general_timeseries.png")
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 def run_maki():
@@ -162,7 +165,7 @@ def run_maki():
         plt.legend()
         fname = os.path.join(OUTPUT_DIR, f"maki_IC_{int(ic[0]*100)}_{int(ic[1]*100)}.png")
         plt.savefig(fname, dpi=150, bbox_inches='tight')
-        plt.show()
+        plt.close()
 
         # registrar proporcion final de informantes
         y_final = float(Y[-1])
@@ -170,6 +173,100 @@ def run_maki():
         with open(os.path.join(OUTPUT_DIR, "maki_final_proportions.txt"), "a", encoding="utf-8") as f:
             f.write(f"IC={ic}, Y_final={y_final:.6f}\n")
 
+
+def run_sir_sweep():
+    """Barrido representativo de (beta,gamma) y guardado de sir_summary.csv"""
+    print("\n BARRIDO SIR (guardando outputs/sir_summary.csv) ")
+    pairs = [
+        (0.5, 0.1),
+        (0.3, 0.1),
+        (0.2, 0.5),
+        (0.15, 0.2)
+    ]
+    t_eval = np.linspace(0, 80, 1600)
+    ic = [0.99, 0.01]
+    rows = []
+    for beta, gamma in pairs:
+        t, y = solve_rk45(sir_rhs, (0, 80), ic, t_eval, beta, gamma)
+        S = y[:,0]; I = y[:,1]
+        imax = I.max()
+        t_peak = t[I.argmax()]
+        R0 = beta / gamma
+        rows.append((beta, gamma, R0, float(imax), float(t_peak)))
+    csv_path = os.path.join(OUTPUT_DIR, "sir_summary.csv")
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["beta","gamma","R0","I_max","t_peak"])
+        writer.writerows(rows)
+    print("Sir summary saved to", csv_path)
+
+
+
+def run_compare_sir_rumor():
+    """Compara I(t) del SIR con Y(t) del modelo general de rumor en el mismo grafico.
+    Guarda outputs/compare_sir_rumor.png
+    """
+    print("\n COMPARACION SIR vs RUMOR (I(t) vs Y(t))")
+
+    # Parametros SIR
+    beta = 0.5
+    gamma = 0.1
+
+    # Parametros modelo general de rumor
+    lam = 0.6
+    delta = 0.1
+    alpha = 0.2
+
+    S0, I0 = 0.99, 0.01
+    X0, Y0 = 0.99, 0.01
+    t_eval = np.linspace(0, 60, 800)
+
+    t_s, y_s = solve_rk45(sir_rhs, (0, 60), [S0, I0], t_eval, beta, gamma)
+    t_r, y_r = solve_rk45(rumor_general_rhs, (0, 60), [X0, Y0], t_eval, lam, delta, alpha)
+
+    I = y_s[:, 1]
+    Y = y_r[:, 1]
+
+    plt.figure()
+    plt.plot(t_s, I, label="I(t) - SIR")
+    plt.plot(t_r, Y, label="Y(t) - Rumor general")
+    plt.title(f"Comparacion SIR (\u03b2={beta},\u03b3={gamma}) vs Rumor (\u03bb={lam},\u03b4={delta},\u03b1={alpha})")
+    plt.xlabel("t")
+    plt.ylabel("Proporcion")
+    plt.grid(True)
+    plt.legend()
+    fname = os.path.join(OUTPUT_DIR, "compare_sir_rumor.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved comparison plot to {fname}")
+
+
+def run_maki_phase_plot():
+    """Genera retrato fase X vs Y para Maki-Thompson y lo guarda"""
+    print("\n GENERANDO RETRATO FASE MAKI (X vs Y) ")
+    lam = 0.6
+    alpha = 0.2
+    condiciones = [
+        [0.99, 0.01],
+        [0.95, 0.05],
+        [0.90, 0.10],
+    ]
+    t_eval = np.linspace(0, 60, 800)
+    plt.figure(figsize=(7,5))
+    for ic in condiciones:
+        t, y = solve_rk45(maki_thompson_rhs, (0,60), ic, t_eval, lam, alpha)
+        X = y[:,0]; Y = y[:,1]
+        plt.plot(X, Y, label=f"IC={ic}")
+        plt.scatter(X[-1], Y[-1], s=20)  # punto final
+    plt.xlabel("Ignorantes X")
+    plt.ylabel("Informantes Y")
+    plt.title("Retrato fase: Maki‑Thompson (X vs Y)")
+    plt.legend()
+    plt.grid(True)
+    fname = os.path.join(OUTPUT_DIR, "maki_phase_XY.png")
+    plt.savefig(fname, dpi=150, bbox_inches='tight')
+    plt.close()
+    print("Saved:", fname)
 
 def run_comparacion_metodos():
     print("\n COMPARACION DE METODOS NUMERICOS ")
@@ -211,7 +308,7 @@ def run_comparacion_metodos():
     plt.legend()
     fname = os.path.join(OUTPUT_DIR, "comparacion_metodos.png")
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
     # Barrido en dt para error/tiempo
     dt_values = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01]
@@ -237,7 +334,7 @@ def run_comparacion_metodos():
     plt.legend()
     fname = os.path.join(OUTPUT_DIR, 'error_vs_dt.png')
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
     # Graficar tiempo vs dt
     plt.figure()
@@ -250,7 +347,7 @@ def run_comparacion_metodos():
     plt.legend()
     fname = os.path.join(OUTPUT_DIR, 'time_vs_dt.png')
     plt.savefig(fname, dpi=150, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -258,6 +355,17 @@ if __name__ == "__main__":
     run_retrato_fase()
     run_rumor_general()
     run_maki()
+    # funciones añadidas: barrido SIR y comparacion SIR vs rumor
+    run_compare_sir_rumor()
     run_comparacion_metodos()
+    try:
+        run_sir_sweep()
+    except Exception as e:
+        print("run_sir_sweep failed:", e)
+    try:
+        run_maki_phase_plot()
+    except Exception as e:
+        print("run_maki_phase_plot failed:", e)
+
 
     print("\n EJECUCION COMPLETA ")
